@@ -60,17 +60,16 @@ services:
       - cache_tesseract:/var/cache/tesseract
 
   solr:
-    image: opensemanticsearch/solr
+    image: solr-new  # Use the locally built image
     build:
-      context: src/solr.deb/
+      context: /home/administrator/solr-7.2.2-image  # Use the correct build directory
+      dockerfile: Dockerfile  # Ensure it picks the correct Dockerfile
     environment:
       - SOLR_LOCAL_HOST=0.0.0.0
     volumes:
-      - data_solr:/var/solr
-
-    # uncomment next two lines, if you want access the Solr API and admin UI on host IP
-    #ports:
-    #  - "8983:8983"
+      - data_solr:/opt/solr/server/solr  # Use the correct volume for core persistence
+    ports:
+      - "8983:8983"  # Enable access to Solr Admin UI
 
   tika:
     image: opensemanticsearch/tika-server
