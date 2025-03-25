@@ -21,8 +21,7 @@ services:
       - OPEN_SEMANTIC_ETL_SPACY_SERVER=http://spacy-services:8080
       - OPEN_SEMANTIC_ETL_NEO4J_HOST=neo4j
       - FLOWER_URL=http://flower:5555/flower
-    env_file:
-      - neo4j.env
+      - NEO4J_AUTH=qras/qrasS0lr4dmin
     ports:
       - "8080:80"
 
@@ -44,8 +43,7 @@ services:
       - OPEN_SEMANTIC_ETL_SPACY_SERVER=http://spacy-services:8080
       - OPEN_SEMANTIC_ETL_NEO4J_HOST=neo4j
       - OMP_THREAD_LIMIT=1
-    env_file:
-      - neo4j.env
+      - NEO4J_AUTH=qras/qrasS0lr4dmin
     volumes:
       - config_etl:/etc/opensemanticsearch:ro
       - data_media:/var/opensemanticsearch/media
@@ -94,8 +92,8 @@ services:
   neo4j:
     image: zsoltvarju/qras:neo4j
     restart: always
-    env_file:
-      - neo4j.env
+    environment:
+      - NEO4J_AUTH=qras/qrasS0lr4dmin
     volumes:
       - data_neo4j:/data
 
