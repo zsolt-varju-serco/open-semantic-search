@@ -1,18 +1,23 @@
-version: '3'
+version: '3.8'
+
 services:
 
   apps:
     image: zsoltvarju/qras:open-semantic-search
     depends_on:
-      - rabbitmq
-      - solr
-      - tika
+      rabbitmq:
+        condition: service_started # Changed from service_healthy
+      solr:
+        condition: service_started # Changed from service_healthy
+      tika:
+        condition: service_started # Changed from service_healthy
     volumes:
       - config_etl:/etc/opensemanticsearch
       - config_solr-php-ui:/etc/solr-php-ui
       - data_db:/var/opensemanticsearch/db
       - data_media:/var/opensemanticsearch/media
     environment:
+      # Your existing environment variables...
       - SOLR_PHP_UI_SOLR_HOST=solr
       - OPEN_SEMANTIC_ETL_MQ_BROKER=amqp://rabbitmq
       - OPEN_SEMANTIC_ETL_SOLR=http://solr:8983/solr/
@@ -23,18 +28,29 @@ services:
       - FLOWER_URL=http://flower:5555/flower
       - NEO4J_AUTH=neo4j/qrasadmin
     ports:
-      - "8080:80"
+      - "8080:80" # Expose main UI externally
+    networks:
+      - qras_network
 
   etl:
     image: zsoltvarju/qras:open-semantic-etl
     depends_on:
-      - apps
-      - rabbitmq
-      - solr
-      - tika
-      - tika-fakecache
-      - spacy-services
+      apps:
+        condition: service_started
+      rabbitmq:
+        condition: service_started # Changed from service_healthy
+      solr:
+        condition: service_started # Changed from service_healthy
+      tika:
+        condition: service_started # Changed from service_healthy
+      tika-fakecache:
+        condition: service_started # Changed from service_healthy
+      spacy-services:
+        condition: service_started # Changed from service_healthy
+      neo4j:
+        condition: service_started # Changed from service_healthy
     environment:
+      # Your existing environment variables...
       - OPEN_SEMANTIC_ETL_MQ_BROKER=amqp://rabbitmq
       - OPEN_SEMANTIC_ETL_METADATA_SERVER=http://apps/search-apps/annotate/json
       - OPEN_SEMANTIC_ETL_SOLR=http://solr:8983/solr/
@@ -48,6 +64,8 @@ services:
       - config_etl:/etc/opensemanticsearch:ro
       - data_media:/var/opensemanticsearch/media
       - cache_tesseract:/var/cache/tesseract
+    networks:
+      - qras_network
 
   solr:
     image: zsoltvarju/qras:solr-7.7.2
@@ -56,7 +74,9 @@ services:
     volumes:
       - data_solr:/opt/solr/server/solr
     ports:
-      - "8983:8983"
+      - "8983:8983" # Expose Solr externally (optional)
+    networks:
+      - qras_network
 
   tika:
     image: zsoltvarju/qras:tika-server
@@ -65,6 +85,8 @@ services:
       - TIKA_CONFIG=/etc/tika/tika-config-cache.xml
     volumes:
       - cache_tesseract:/var/cache/tesseract
+    networks:
+      - qras_network
 
   tika-fakecache:
     image: zsoltvarju/qras:tika-server
@@ -73,12 +95,21 @@ services:
       - TIKA_CONFIG=/etc/tika/tika-config-fakecache.xml
     volumes:
       - cache_tesseract:/var/cache/tesseract
+    networks:
+      - qras_network
 
   spacy-services:
     image: zsoltvarju/qras:spacy-services
+    ports:
+      - "3002:8080"
+    networks:
+      - qras_network
 
   rabbitmq:
     image: zsoltvarju/qras:rabbitmq
+    networks:
+      - qras_network
+    # ports: # No need to expose 5672/15672 to host if only accessed internally
 
   flower:
     image: zsoltvarju/qras:flower
@@ -87,19 +118,46 @@ services:
       - FLOWER_PORT=5555
       - FLOWER_URL_PREFIX=flower
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_started # Changed from service_healthy
+    # ports: # No need to expose 5555 to host if only accessed internally or via nginx
+    networks:
+      - qras_network
 
   neo4j:
     image: zsoltvarju/qras:neo4j
     restart: always
     environment:
       - NEO4J_AUTH=neo4j/qrasadmin
+      # - NEO4J_initial_password=qrasadmin # Optional: set initial password
     volumes:
       - data_neo4j:/data
+    # ports: # No need to expose 7474/7687 to host if only accessed internally or via nginx
+    networks:
+      - qras_network
 
   cron:
     image: zsoltvarju/qras:cron
+    networks:
+      - qras_network
 
+  # --- Monitoring Service ---
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    volumes:
+      - uptime_kuma_data:/app/data # Persist Uptime Kuma config and history
+    ports:
+      - "3001:3001" # Expose Uptime Kuma UI on host port 3001
+    networks:
+      - qras_network # Add to the same network
+    restart: always
+
+# Define the network for inter-service communication
+networks:
+  qras_network:
+    driver: bridge
+
+# Define the volumes used by the services
 volumes:
   config_etl:
   config_solr-php-ui:
@@ -108,3 +166,4 @@ volumes:
   data_neo4j:
   data_solr:
   cache_tesseract:
+  uptime_kuma_data: # Define the persistent volume for Uptime Kuma
