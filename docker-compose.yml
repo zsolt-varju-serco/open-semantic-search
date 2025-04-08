@@ -141,6 +141,18 @@ services:
     networks:
       - qras_network
 
+  jenkins:
+    image: zsoltvarju/qras:jenkins
+    container_name: jenkins
+    ports:
+      - "9090:8080"
+    volumes:
+      - /srv/jenkins_home:/var/jenkins_home
+      - /var/www:/var/www
+    networks:
+      - qras_network
+    restart: unless-stopped
+
   # --- Monitoring Service ---
   uptime-kuma:
     image: louislam/uptime-kuma:1
